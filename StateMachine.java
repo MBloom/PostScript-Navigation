@@ -43,6 +43,7 @@ public class StateMachine {
         currX = p.x;
         currY = p.y;
         startHeading = dir;
+        angle = dir;
     }
 
     public void run() {
@@ -83,6 +84,16 @@ public class StateMachine {
         intendedPenState = false;
         isNumeric = false;
         iRobot.pickPenUp();
+        
+//        setManeuverStartAngle();
+//        if (angle != startHeading) {
+//        	turnManeuver();
+//        } else {
+//        	// don't turn
+//        }
+//        movePen();
+//        setManeuverStartDistance();
+//        move();
         
     }
 

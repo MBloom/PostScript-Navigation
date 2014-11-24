@@ -77,6 +77,34 @@ public class Turtle {
 		this.shellSize = 8;
 		w.addTurtle(this);
 	}
+	
+	/**
+	 * Makes a new turtle at the specified point within the world
+	 * 
+	 * @param w
+	 *            the world
+	 * @param x
+	 *            the x coordinate, in pixels; 0 is the center; bigger numbers
+	 *            to left
+	 * @param y
+	 *            the y coordinate, in pixels; 0 is the center; bigger numbers
+	 *            down
+	 * @param t
+	 * 			  the initial heading, in degrees; 0 is right, rotates counter clockwise
+	 */
+	public Turtle(World w, double x, double y, double t) {
+		this.location = new Point2D.Double(x + w.centerX, w.centerY - y);
+		// this.trail = new GeneralPath(); // not used
+		// this.trail.moveTo(this.location.x, this.location.y); // not used
+		this.theta = t;
+		this.world = w;
+		this.color = Turtle.base[Turtle.baseIndex];
+		Turtle.baseIndex = (Turtle.baseIndex + 1) % Turtle.base.length;
+		this.penWidth = 1;
+		this.isdown = true;
+		this.shellSize = 8;
+		w.addTurtle(this);
+	}
 
 	/**
 	 * Moves the turtle in the direction it is facing
@@ -95,6 +123,7 @@ public class Turtle {
 			d--;
 		}
 		forward(d);
+		this.pause(500);
 	}
 
 	/**
@@ -233,14 +262,6 @@ public class Turtle {
 	 */
 	void _how_world_draw_turtles(Graphics2D g) {
 
-		// // Other way to draw trails; can't change color part-way through
-		// though
-		// g.setColor(color);
-		// g.setStroke(new BasicStroke((float)this.width, BasicStroke.CAP_ROUND,
-		// BasicStroke.JOIN_ROUND));
-		// g.draw(this.trail);
-		// // end other way to draw tails
-
 		// The following draws a picture of a turtle
 
 		// three shapes
@@ -249,28 +270,14 @@ public class Turtle {
 		GeneralPath body = new GeneralPath(); // the head, legs, and tail
 		double c = Math.cos(this.theta);
 		double s = Math.sin(this.theta);
-		double x = this.location.x;
-		double y = this.location.y;
+		double x = this.location.x - (world.centerX - 20);
+		double y = this.location.y + (world.centerY - 20);
 		double w = this.shellSize;
-		// Ellipse2D leftEye = new Ellipse2D.Double(x + 1.55*w*c + 0.15*w*s
-		// -0.1*w, y + 1.55*w*s - 0.15*w*c -0.1*w, 0.2*w, 0.2*w);
-		// Ellipse2D rightEye = new Ellipse2D.Double(x + 1.55*w*c - 0.15*w*s
-		// -0.1*w, y + 1.55*w*s + 0.15*w*c -0.1*w, 0.2*w, 0.2*w);
 
 		body.moveTo(x + w * 0.9 * c + w * 0.4 * s, y + w * 0.9 * s - w * 0.4
 				* c);
 		body.lineTo(x + w * 1.8 * c + w * 0.3 * s, y + w * 1.8 * s - w * 0.3
 				* c);
-		// body.curveTo(
-		// x + w*1.6*c + w*0.4*s, y + w*1.6*s - w*0.4*c,
-		// x + w*1.8*c + w*0.3*s, y + w*1.8*s - w*0.3*c,
-		// x + w*1.8*c + w*0.0*s, y + w*1.8*s - w*0.0*c
-		// );
-		// body.curveTo(
-		// x + w*1.8*c - w*0.3*s, y + w*1.8*s + w*0.3*c,
-		// x + w*1.6*c - w*0.4*s, y + w*1.6*s + w*0.4*c,
-		// x + w*0.9*c - w*0.4*s, y + w*0.9*s + w*0.4*c
-		// );
 
 		body.closePath();
 
@@ -308,13 +315,7 @@ public class Turtle {
 				Math.min(color.getRed(), 255 - gap), gap), Math.max(
 				Math.min(color.getGreen(), 255 - gap), gap), Math.max(
 				Math.min(color.getBlue(), 255 - gap), gap));
-		Color lightColor = new Color(midColor.getRed() + gap,
-				midColor.getGreen() + gap, midColor.getBlue() + gap);
-		Color darkColor = new Color(midColor.getRed() - gap,
-				midColor.getGreen() - gap, midColor.getBlue() - gap);
 
-		// g.setColor(darkColor);
-		// g.fill(body);
 		g.setColor(midColor);
 		g.fill(back);
 		if (isdown) {
@@ -410,7 +411,7 @@ public class Turtle {
 	 *            in degrees; 0 is right, 90 is up, etc
 	 */
 	public void setHeading(double angle) {
-		this.theta = angle * Math.PI / 180;
+		this.theta = (-1 * angle) * Math.PI / 180;
 		world.turtleMoved();
 		this.pause();
 	}

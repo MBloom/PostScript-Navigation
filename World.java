@@ -115,7 +115,7 @@ public class World extends JFrame {
 		// draw the line
 		this.gg.setColor(color);
 		this.gg.setStroke(new BasicStroke((float)width, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-		Line2D.Double line = new Line2D.Double(p1, p2);
+		Line2D.Double line = new Line2D.Double(p1.getX() - (centerX - 20), p1.getY() + (centerY  - 20), p2.getX() - (centerX - 20), p2.getY() + (centerY - 20));
 		this.gg.draw(line);
 
 		// show the drawn lines
