@@ -1,0 +1,14 @@
+newpath 0 0 moveto 203 0 line 203 203 line 0 203 line 0 0 line - left turn square
+
+
+newpath 0 0 moveto 0 30 line 30 30 line 30 0 line 0 0 line - right turn square
+
+
+newpath 0 0 moveto 203 0 line 203 101 line 0 101 line 0 0 line 101 0 moveto 101 203 line - heiroglyph
+
+
+newpath 0 0 moveto 75 0 moveto 203 0 line 203 203 line 0 203 line 0 0 line 25 0 line 25 178 line 178 178 line 178 25 line 75 25 line 75 0 line - square with walls and door
+
+newpath 0 0 moveto 203 0 line 203 203 line 0 203 line 0 0 line 25 25 moveto 178 25 line 178 178 line 25 178 line 25 25 line - square with walls
+
+newpath 0 0 moveto 203 0 line 203 203 line 0 203 line 0 0 line 75 0 moveto 75 203 line 0 75 moveto 203 75 line 75 150 moveto 0 150 line - basic floor plan

@@ -20,16 +20,16 @@ public class CivilTurtlesMain {
 	private static final int WIDTH = 640;
 
 	public static void main(String[] args) throws InterruptedException {
-//        JFileChooser fc = new JFileChooser();
-//        FileNameExtensionFilter filter = new FileNameExtensionFilter(
-//                "TEXT FILES", "txt", "text");
-//        fc.setFileFilter(filter);
-//        int returnVal = fc.showOpenDialog(null);
-//        if (returnVal == JFileChooser.APPROVE_OPTION) {
+       JFileChooser fc = new JFileChooser();
+       FileNameExtensionFilter filter = new FileNameExtensionFilter(
+               "TEXT FILES", "txt", "text");
+       fc.setFileFilter(filter);
+       int returnVal = fc.showOpenDialog(null);
+       if (returnVal == JFileChooser.APPROVE_OPTION) {
             try {
                 @SuppressWarnings("resource")
-                //Scanner inFile = new Scanner(fc.getSelectedFile());
-                Scanner inFile = new Scanner(new File("route.txt"));
+                Scanner inFile = new Scanner(fc.getSelectedFile());
+                // Scanner inFile = new Scanner(new File("route.txt"));
                 World foundation = new World(WIDTH, HEIGHT, Color.WHITE);
                 
 
@@ -50,7 +50,7 @@ public class CivilTurtlesMain {
             } catch (FileNotFoundException e) {
                 System.out.println("Sorry - that file couldn't be opened!");
             }
-//        }
+       }
     }
 
 }

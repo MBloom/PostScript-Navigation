@@ -128,7 +128,7 @@ public class StateMachine {
     	iRobot.pickPenUp();
     	currentPenState = false;
     	
-    	if ( (angle == 0 && startHeading >= 180) || ( angle != 0 && ( angle - startHeading >= 0 && angle - startHeading <= 180)) ) {	// left
+    	if ( (angle == 0 && startHeading >= 180) || ( angle != 0 && ( angle - startHeading >= 0 && angle - startHeading <= 180)) || ( (angle + 360) - startHeading >= 0 && (angle + 360 ) - startHeading <= 180))  {	// left
     		double turn = Math.abs(angle - startHeading);
     		if(turn > 180) {
     			turn = 360 - turn;
