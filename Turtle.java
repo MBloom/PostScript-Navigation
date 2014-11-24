@@ -157,21 +157,37 @@ public class Turtle {
 		this.pause(500);
 	}
 
-	public void leftTurnManuever(int degrees) {
-		double forward = 1.7332 * Math.pow(Math.E, 0.0203 * degrees);
+	public void leftTurnManuever(double d) {
+		double forward = 1.7332 * Math.pow(Math.E, 0.0203 * d);
 		this.pause(500);
+		
+		System.out.println("\tMove Past Corner (Left)");
 		this.incForward(forward);
-		this.incLeft(degrees);
+		
+		System.out.println("\tTurn Left (CCW)");
+		this.incLeft(d);
+		
+		System.out.println("\tTurned Far Enough Left");		
+		System.out.println("\tMove to Corner");
 		this.incForward(forward);
+		
 		this.pause(500);
 	}
 
-	public void rightTurnManuever(int degrees) {
+	public void rightTurnManuever(double degrees) {
 		double backward = 1.7332 * Math.pow(Math.E, 0.0203 * degrees);
 		this.pause(500);
+		
+		System.out.println("\tMove Back from Corner (Right)");
 		this.incBackward(backward);
+		
+		System.out.println("\tTurn Right (CW)");
 		this.incRight(degrees);
+		
+		System.out.println("\tTurned Far Enough Right");
+		System.out.println("\tMove back to Corner");
 		this.incBackward(backward);
+		
 		this.pause(500);
 	}
 

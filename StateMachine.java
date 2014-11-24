@@ -8,10 +8,26 @@ import java.util.Scanner;
 
 public class StateMachine {
 
-    private Turtle iRobot;
+    private static final String KEY_IS_NUMERIC_OR_NEWPATH = "isNumericOrNewpath";
+	private static final String KEY_INTENDED_PEN_STATE = "intendedPenState";
+	private static final String KEY_NEXT_Y = "nextY";
+	private static final String KEY_NEXT_X = "nextX";
+	private static final String KEY_INDEX = "index";
+	private static final String KEY_CURR_PEN_STATE = "currPenState";
+	private static final String KEY_ANGLE = "angle";
+	private static final String KEY_DISTANCE = "distance";
+	private static final String KEY_CURR_Y = "currY";
+	private static final String KEY_CURR_X = "currX";
+	private static final String KEY_ORIG_Y = "origY";
+	private static final String KEY_ORIG_X = "origX";
+	private static final String KEY_PATH = "path";
+	
+	private Turtle iRobot;
     private int arrayIndex;
-    private double distance, origX, origY, currX, currY, nextX, nextY;
-    private double angle, startHeading;
+    private double origX, origY, currX, currY, nextX, nextY;
+    private double angle, startHeading, accumAngleAtStartOfManeuver;
+    private double distance, distanceAtStartOfManeuver;
+    private double netAngle, netDistance;
     private boolean currentPenState, intendedPenState;
     private boolean isNumeric;
     private Scanner epsFile;
@@ -19,6 +35,8 @@ public class StateMachine {
 
     public StateMachine(Turtle t, Scanner f, Point p, double dir) {
         iRobot = t;
+        netAngle = 0;
+        netDistance = 0;
         epsFile = f;
         origX = p.x;
         origY = p.y;
@@ -34,15 +52,123 @@ public class StateMachine {
             parseCommand();
             if (isNumeric) {
                 continue;
+            } else if (arrayIndex-1 == path.length) {
+            	continue;
             }
-            //setStartAngle
+            setManeuverStartAngle();
+            if (angle != startHeading) {
+            	turnManeuver();
+            } else {
+            	// don't turn
+            }
+            movePen();
+            setManeuverStartDistance();
+            move();
         }
     }
 
     private void readFileFromServer() {
+    	System.out.println("Read File From Server");
+    	
         readFile();
     }
 
+    private void initialize() {
+    	System.out.println("Initialize");
+    	
+        arrayIndex = 0;
+        nextX = 0;
+        nextY = 0;
+        currentPenState = false;
+        intendedPenState = false;
+        isNumeric = false;
+        iRobot.pickPenUp();
+        
+    }
+
+    private void parseCommand() {
+    	System.out.println("Parse Command");
+    	
+        //Put Outputs in map
+        HashMap<String, Object> inputs = new HashMap<String, Object>();
+        inputs.put(KEY_PATH, path);
+        inputs.put(KEY_CURR_PEN_STATE, currentPenState);
+        inputs.put(KEY_ORIG_X, origX);
+        inputs.put(KEY_ORIG_Y, origY);
+        inputs.put(KEY_CURR_X, currX);
+        inputs.put(KEY_CURR_Y, currY);
+        inputs.put(KEY_ANGLE, angle);
+        inputs.put(KEY_DISTANCE, distance);
+        inputs.put(KEY_INDEX, arrayIndex);
+
+        Map<String, Object> outputs = commandParser(inputs);
+
+        startHeading = angle;
+        intendedPenState = (boolean) outputs.get(KEY_INTENDED_PEN_STATE);
+        origX = (double) outputs.get(KEY_ORIG_X);
+        origY = (double) outputs.get(KEY_ORIG_Y);
+        currX = (double) outputs.get(KEY_CURR_X);
+        currY = (double) outputs.get(KEY_CURR_Y);
+        angle = (double) outputs.get(KEY_ANGLE);
+        distance = (double) outputs.get(KEY_DISTANCE);
+        arrayIndex = (int) outputs.get(KEY_INDEX);
+        isNumeric = (boolean) outputs.get(KEY_IS_NUMERIC_OR_NEWPATH);
+    }
+
+    private void setManeuverStartAngle() {
+    	System.out.println("Set Maneuver Start Angle");
+    	
+    	accumAngleAtStartOfManeuver = netAngle;
+    }
+    
+    private void turnManeuver() {
+    	System.out.println("Turn Maneuver");
+    	
+    	System.out.println("\tPen Up");
+    	iRobot.pickPenUp();
+    	currentPenState = false;
+    	
+    	if ( (angle == 0 && startHeading >= 180) || ( angle != 0 && ( angle - startHeading >= 0 && angle - startHeading <= 180)) ) {	// left
+    		double turn = Math.abs(angle - startHeading);
+    		if(turn > 180) {
+    			turn = 360 - turn;
+    		}
+    		iRobot.leftTurnManuever(turn);
+    	} else if ( ( angle == 0 && startHeading < 180) || ( angle != 0 && (angle - startHeading < 0 || angle - startHeading > 180)) ) {	// right
+    		double turn = angle - startHeading;
+    		if(turn > 180) {
+    			turn = 360 - turn;
+    		}
+    		iRobot.rightTurnManuever(Math.abs(turn));
+    	}
+    	
+    	netAngle += angle;
+    	startHeading = angle;
+    }
+    
+    private void movePen() {
+    	System.out.println("Move Pen");
+    	
+    	motorMover();
+    	currentPenState = intendedPenState;
+    }
+    
+    private void setManeuverStartDistance() {
+    	System.out.println("Set Maneuver Start Distance");
+    	
+    	distanceAtStartOfManeuver = netDistance;
+    }
+    
+    private void move() {
+    	System.out.println("Moving");
+    	iRobot.incForward(distance);
+    	netDistance += distance;
+    	
+    	if(netDistance == (distance + distanceAtStartOfManeuver)) {	// redundant check for guard
+    		System.out.println("Stop Moving");
+    	}
+    }
+    
     private void readFile() {
         // simulation
         StringBuilder sb = new StringBuilder();
@@ -53,54 +179,17 @@ public class StateMachine {
         path = sb.toString().split(" ");
     }
 
-    private void initialize() {
-        arrayIndex = 0;
-        distance = 0;
-        angle = 0;
-        nextX = 0;
-        nextY = 0;
-        currentPenState = false;
-        intendedPenState = false;
-        isNumeric = false;
-    }
-
-    private void parseCommand() {
-        //Put Outputs in map
-        HashMap<String, Object> inputs = new HashMap<String, Object>();
-        inputs.put("currPenState", currentPenState);
-        inputs.put("origX", origX);
-        inputs.put("origY", origY);
-        inputs.put("currX", currX);
-        inputs.put("currY", currY);
-        inputs.put("angle", angle);
-        inputs.put("distance", distance);
-        inputs.put("index", arrayIndex);
-
-        Map<String, Object> outputs = commandParser(inputs);
-
-        startHeading = angle;
-        intendedPenState = (boolean) outputs.get("intendedPenState");
-        origX = (double) outputs.get("origX");
-        origY = (double) outputs.get("origY");
-        currX = (double) outputs.get("currX");
-        currY = (double) outputs.get("currY");
-        angle = (double) outputs.get("angle");
-        distance = (double) outputs.get("distance");
-        arrayIndex = (int) outputs.get("index");
-        isNumeric = (boolean) outputs.get("isNumericOrNewpath");
-    }
-
     private Map<String, Object> commandParser(Map<String, Object> inputs) {
         //get inputs from map
-        String[] inputPath = (String[]) inputs.get("path");
-        double inputOrigX = (double) inputs.get("origX");
-        double inputOrigY = (double) inputs.get("origY");
-        double inputCurrX = (double) inputs.get("currX");
-        double inputCurrY = (double) inputs.get("currY");
-        double inputDistance = (double) inputs.get("distance");
-        double inputAngle = (double) inputs.get("angle");
-        boolean inputCurrPenState = (boolean) inputs.get("currPenState");
-        int inputArrayIndex = (int) inputs.get("index");
+        String[] inputPath = (String[]) inputs.get(KEY_PATH);
+        double inputOrigX = (double) inputs.get(KEY_ORIG_X);
+        double inputOrigY = (double) inputs.get(KEY_ORIG_Y);
+        double inputCurrX = (double) inputs.get(KEY_CURR_X);
+        double inputCurrY = (double) inputs.get(KEY_CURR_Y);
+        double inputDistance = (double) inputs.get(KEY_DISTANCE);
+        double inputAngle = (double) inputs.get(KEY_ANGLE);
+        boolean inputCurrPenState = (boolean) inputs.get(KEY_CURR_PEN_STATE);
+        int inputArrayIndex = (int) inputs.get(KEY_INDEX);
 
         //create output variables
         double outputOrigX = 0, outputOrigY = 0, outputCurrX = 0, outputCurrY = 0;
@@ -124,35 +213,39 @@ public class StateMachine {
             outputAngle = inputAngle;
             outputIntendedPenState = inputCurrPenState;
         } else {
-            double cmdX = Double.parseDouble(inputPath[inputArrayIndex - 2]);
-            double cmdY = Double.parseDouble(inputPath[inputArrayIndex - 1]);
             if (currentStr.equals("line")) {
+            	double cmdX = Double.parseDouble(inputPath[inputArrayIndex - 2]);
+                double cmdY = Double.parseDouble(inputPath[inputArrayIndex - 1]);
+                
                 HashMap<String, String> distAndAngleInputs = new HashMap<String, String>();
-                distAndAngleInputs.put("currX", inputCurrX + "");
-                distAndAngleInputs.put("currY", inputCurrY + "");
-                distAndAngleInputs.put("nextX", cmdX + "");
-                distAndAngleInputs.put("nextY", cmdY + "");
+                distAndAngleInputs.put(KEY_CURR_X, inputCurrX + "");
+                distAndAngleInputs.put(KEY_CURR_Y, inputCurrY + "");
+                distAndAngleInputs.put(KEY_NEXT_X, cmdX + "");
+                distAndAngleInputs.put(KEY_NEXT_Y, cmdY + "");
 
                 Map<String, Double> distAndAngleOutputs = computeDistanceAndAngle(distAndAngleInputs);
 
-                outputDistance = distAndAngleOutputs.get("distance");
-                outputAngle = distAndAngleOutputs.get("angle");
+                outputDistance = distAndAngleOutputs.get(KEY_DISTANCE);
+                outputAngle = distAndAngleOutputs.get(KEY_ANGLE);
                 outputIntendedPenState = true;
                 outputOrigX = inputOrigX;
                 outputOrigY = inputOrigY;
                 outputCurrX = cmdX;
                 outputCurrY = cmdY;
-            } else if (currentStr.equals("moveTo")) {
+            } else if (currentStr.equals("moveto")) {
+            	double cmdX = Double.parseDouble(inputPath[inputArrayIndex - 2]);
+                double cmdY = Double.parseDouble(inputPath[inputArrayIndex - 1]);
+                
                 HashMap<String, String> distAndAngleInputs = new HashMap<String, String>();
-                distAndAngleInputs.put("currX", inputCurrX + "");
-                distAndAngleInputs.put("currY", inputCurrY + "");
-                distAndAngleInputs.put("nextX", cmdX + "");
-                distAndAngleInputs.put("nextY", cmdY + "");
+                distAndAngleInputs.put(KEY_CURR_X, inputCurrX + "");
+                distAndAngleInputs.put(KEY_CURR_Y, inputCurrY + "");
+                distAndAngleInputs.put(KEY_NEXT_X, cmdX + "");
+                distAndAngleInputs.put(KEY_NEXT_Y, cmdY + "");
 
                 Map<String, Double> distAndAngleOutputs = computeDistanceAndAngle(distAndAngleInputs);
 
-                outputDistance = distAndAngleOutputs.get("distance");
-                outputAngle = distAndAngleOutputs.get("angle");
+                outputDistance = distAndAngleOutputs.get(KEY_DISTANCE);
+                outputAngle = distAndAngleOutputs.get(KEY_ANGLE);
                 outputIntendedPenState = false;
                 outputOrigX = inputOrigX;
                 outputOrigY = inputOrigY;
@@ -173,15 +266,17 @@ public class StateMachine {
 
         //Put Outputs in map
         HashMap<String, Object> outputs = new HashMap<String, Object>();
-        outputs.put("origX", outputOrigX);
-        outputs.put("origY", outputOrigY);
-        outputs.put("currX", outputCurrX);
-        outputs.put("currY", outputCurrY);
-        outputs.put("distance", outputDistance);
-        outputs.put("angle", outputAngle);
-        outputs.put("index", outputArrayIndex);
-        outputs.put("intendedPenState", outputIntendedPenState);
-        outputs.put("isNumericOrNewpath", outputIsNumericOrNewPath);
+        outputs.put(KEY_ORIG_X, outputOrigX);
+        outputs.put(KEY_ORIG_Y, outputOrigY);
+        outputs.put(KEY_CURR_X, outputCurrX);
+        outputs.put(KEY_CURR_Y, outputCurrY);
+        outputs.put(KEY_DISTANCE, outputDistance);
+        outputs.put(KEY_ANGLE, outputAngle);
+        outputs.put(KEY_INDEX, outputArrayIndex);
+        outputs.put(KEY_INTENDED_PEN_STATE, outputIntendedPenState);
+        outputs.put(KEY_IS_NUMERIC_OR_NEWPATH, outputIsNumericOrNewPath);
+        
+        return outputs;
     }
 
     private boolean isNumeric(String s) {
@@ -194,77 +289,34 @@ public class StateMachine {
     }
 
     private Map<String, Double> computeDistanceAndAngle(Map<String, String> inputs) {
-        Double currX = Double.parseDouble(inputs.get("currX"));
-        Double currY = Double.parseDouble(inputs.get("currY"));
-        Double nextX = Double.parseDouble(inputs.get("nextX"));
-        Double nextY = Double.parseDouble(inputs.get("nextY"));
+        Double currX = Double.parseDouble(inputs.get(KEY_CURR_X));
+        Double currY = Double.parseDouble(inputs.get(KEY_CURR_Y));
+        Double nextX = Double.parseDouble(inputs.get(KEY_NEXT_X));
+        Double nextY = Double.parseDouble(inputs.get(KEY_NEXT_Y));
 
         Double outputDist = Math.sqrt(Math.pow(nextX - currX, 2) + Math.pow(nextY - currY, 2));
         Double outputAngle = Math.toDegrees(Math.atan2(nextY - currY, nextX - currX));
+        
         if (outputAngle < 0) {
             outputAngle += 360;
         }
 
         HashMap<String, Double> outputs = new HashMap<String, Double>();
-        outputs.put("distance", outputDist);
-        outputs.put("angle", outputAngle);
+        outputs.put(KEY_DISTANCE, outputDist);
+        outputs.put(KEY_ANGLE, outputAngle);
         return outputs;
     }
-//    public double getHeading() {
-//        return currentHeading;
-//    }
-//
-//    public double getDistance() {
-//        return distance;
-//    }
-//
-//    public boolean penUp() {
-//        return penState;
-//    }
-//
-//    public void parseNextCommand() {
-//        switch (path[array_pos]) {
-//            case "newpath":
-//                break;
-//            case "moveto":
-//                calcManeuver(path[array_pos - 2], path[array_pos - 1]);
-//                iRobot.pickPenUp();
-//                turn();
-//                move();
-//                break;
-//            case "lineto":
-//                calcManeuver(path[array_pos - 2], path[array_pos - 1]);
-//                iRobot.pickPenUp();
-//                turn();
-//                iRobot.putPenDown();
-//                move();
-//                break;
-//            default:
-//                break;
-//        }
-//        array_pos++;
-//    }
-//
-//    public void calcManeuver(String x, String y) {
-//        nextX = Double.parseDouble(x);
-//        nextY = Double.parseDouble(y);
-//        distance = Math.sqrt((nextX - curX) * (nextX - curX) + (nextY - curY)
-//                * (nextY - curY));
-//        targetHeading = (int) Math.toDegrees(Math.atan2(nextY - curY, nextX - curX));
-//    }
-//
-//    public void turn() {
-//        if ((targetHeading == 0 && currentHeading >= 180) || (targetHeading - currentHeading >= 0 && targetHeading - currentHeading <= 180)) {
-//            iRobot.leftTurnManuever(targetHeading - currentHeading);
-//        } else {
-//            iRobot.rightTurnManuever(targetHeading - currentHeading);
-//        }
-//        currentHeading = targetHeading;
-//    }
-//
-//    public void move() {
-//        iRobot.incForward(distance);
-//        curX = nextX;
-//        curY = nextY;
-//    }
+
+    private void motorMover() {
+    	boolean moveMotor = currentPenState ^ intendedPenState;
+    	
+    	if (moveMotor) {
+    		if (intendedPenState) {
+    			iRobot.putPenDown();
+    		} else {
+    			iRobot.pickPenUp();
+    		}
+    	}
+    }
+
 }
