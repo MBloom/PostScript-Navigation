@@ -1,28 +1,33 @@
 package civilturtles;
 
 import java.awt.Point;
-import java.io.File;
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class StateMachine {
 
     private static final String KEY_IS_NUMERIC_OR_NEWPATH = "isNumericOrNewpath";
-	private static final String KEY_INTENDED_PEN_STATE = "intendedPenState";
-	private static final String KEY_NEXT_Y = "nextY";
-	private static final String KEY_NEXT_X = "nextX";
-	private static final String KEY_INDEX = "index";
-	private static final String KEY_CURR_PEN_STATE = "currPenState";
-	private static final String KEY_ANGLE = "angle";
-	private static final String KEY_DISTANCE = "distance";
-	private static final String KEY_CURR_Y = "currY";
-	private static final String KEY_CURR_X = "currX";
-	private static final String KEY_ORIG_Y = "origY";
-	private static final String KEY_ORIG_X = "origX";
-	private static final String KEY_PATH = "path";
-	
-	private Turtle iRobot;
+    private static final String KEY_INTENDED_PEN_STATE = "intendedPenState";
+    private static final String KEY_NEXT_Y = "nextY";
+    private static final String KEY_NEXT_X = "nextX";
+    private static final String KEY_INDEX = "index";
+    private static final String KEY_CURR_PEN_STATE = "currPenState";
+    private static final String KEY_ANGLE = "angle";
+    private static final String KEY_DISTANCE = "distance";
+    private static final String KEY_CURR_Y = "currY";
+    private static final String KEY_CURR_X = "currX";
+    private static final String KEY_ORIG_Y = "origY";
+    private static final String KEY_ORIG_X = "origX";
+    private static final String KEY_PATH = "path";
+
+    private Turtle iRobot;
     private int arrayIndex;
     private double origX, origY, currX, currY, nextX, nextY;
     private double angle, startHeading, accumAngleAtStartOfManeuver;
@@ -30,14 +35,15 @@ public class StateMachine {
     private double netAngle, netDistance;
     private boolean currentPenState, intendedPenState;
     private boolean isNumeric;
-    private Scanner epsFile;
+//    private Scanner epsFile;
+    private String ipAddr;
     private String[] path;
 
-    public StateMachine(Turtle t, Scanner f, Point p, double dir) {
+    public StateMachine(Turtle t, String s, Point p, double dir) {
         iRobot = t;
         netAngle = 0;
         netDistance = 0;
-        epsFile = f;
+        ipAddr = s;
         origX = p.x;
         origY = p.y;
         currX = p.x;
@@ -49,18 +55,21 @@ public class StateMachine {
     public void run() {
         readFileFromServer();
         initialize();
-        while(arrayIndex < path.length) {
+        while (arrayIndex < path.length) {
+            if (path[arrayIndex].isEmpty()) {
+                continue;
+            }
             parseCommand();
             if (isNumeric) {
                 continue;
-            } else if (arrayIndex-1 == path.length) {
-            	continue;
+            } else if (arrayIndex - 1 == path.length) {
+                continue;
             }
             setManeuverStartAngle();
             if (angle != startHeading) {
-            	turnManeuver();
-            } else {
-            	// don't turn
+                turnManeuver();
+            } else {    
+                // don't turn
             }
             movePen();
             setManeuverStartDistance();
@@ -69,14 +78,29 @@ public class StateMachine {
     }
 
     private void readFileFromServer() {
-    	System.out.println("Read File From Server");
-    	
-        readFile();
+        try {
+            System.out.println("Read File from Server");
+            String sentence;
+            Socket clientSocket = new Socket(ipAddr, 9999);
+            DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
+            BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            sentence = "H:Hello from turtle";
+            outToServer.writeBytes(sentence + '\n');
+            StringBuilder result = new StringBuilder();
+            for (int i = 0; i < 1000; i++) {
+                result.append((char) inFromServer.read());
+            }
+            System.out.println("FROM SERVER: " + result.toString());
+            path = result.toString().trim().split(":")[1].split(" ");
+            clientSocket.close();
+        } catch (IOException ex) {
+            Logger.getLogger(StateMachine.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     private void initialize() {
-    	System.out.println("Initialize");
-    	
+        System.out.println("Initialize");
+
         arrayIndex = 0;
         nextX = 0;
         nextY = 0;
@@ -84,7 +108,7 @@ public class StateMachine {
         intendedPenState = false;
         isNumeric = false;
         iRobot.pickPenUp();
-        
+
 //        setManeuverStartAngle();
 //        if (angle != startHeading) {
 //        	turnManeuver();
@@ -94,12 +118,11 @@ public class StateMachine {
 //        movePen();
 //        setManeuverStartDistance();
 //        move();
-        
     }
 
     private void parseCommand() {
-    	System.out.println("Parse Command");
-    	
+        System.out.println("Parse Command");
+
         //Put Outputs in map
         HashMap<String, Object> inputs = new HashMap<String, Object>();
         inputs.put(KEY_PATH, path);
@@ -127,69 +150,68 @@ public class StateMachine {
     }
 
     private void setManeuverStartAngle() {
-    	System.out.println("Set Maneuver Start Angle");
-    	
-    	accumAngleAtStartOfManeuver = netAngle;
-    }
-    
-    private void turnManeuver() {
-    	System.out.println("Turn Maneuver");
-    	
-    	System.out.println("\tPen Up");
-    	iRobot.pickPenUp();
-    	currentPenState = false;
-    	
-    	if ( (angle == 0 && startHeading >= 180) || ( angle != 0 && ( angle - startHeading >= 0 && angle - startHeading <= 180)) || ( (angle + 360) - startHeading >= 0 && (angle + 360 ) - startHeading <= 180))  {	// left
-    		double turn = Math.abs(angle - startHeading);
-    		if(turn > 180) {
-    			turn = 360 - turn;
-    		}
-    		iRobot.leftTurnManuever(turn);
-    	} else if ( ( angle == 0 && startHeading < 180) || ( angle != 0 && (angle - startHeading < 0 || angle - startHeading > 180)) ) {	// right
-    		double turn = angle - startHeading;
-    		if(turn > 180) {
-    			turn = 360 - turn;
-    		}
-    		iRobot.rightTurnManuever(Math.abs(turn));
-    	}
-    	
-    	netAngle += angle;
-    	startHeading = angle;
-    }
-    
-    private void movePen() {
-    	System.out.println("Move Pen");
-    	
-    	motorMover();
-    	currentPenState = intendedPenState;
-    }
-    
-    private void setManeuverStartDistance() {
-    	System.out.println("Set Maneuver Start Distance");
-    	
-    	distanceAtStartOfManeuver = netDistance;
-    }
-    
-    private void move() {
-    	System.out.println("Moving");
-    	iRobot.incForward(distance);
-    	netDistance += distance;
-    	
-    	if(netDistance == (distance + distanceAtStartOfManeuver)) {	// redundant check for guard
-    		System.out.println("Stop Moving");
-    	}
-    }
-    
-    private void readFile() {
-        // simulation
-        StringBuilder sb = new StringBuilder();
-        while (epsFile.hasNextLine()) {
-            sb.append(epsFile.nextLine());
-            sb.append(" ");
-        }
-        path = sb.toString().split(" ");
+        System.out.println("Set Maneuver Start Angle");
+
+        accumAngleAtStartOfManeuver = netAngle;
     }
 
+    private void turnManeuver() {
+        System.out.println("Turn Maneuver");
+
+        System.out.println("\tPen Up");
+        iRobot.pickPenUp();
+        currentPenState = false;
+
+        if ((angle == 0 && startHeading >= 180) || (angle != 0 && (angle - startHeading >= 0 && angle - startHeading <= 180)) || ((angle + 360) - startHeading >= 0 && (angle + 360) - startHeading <= 180)) {	// left
+            double turn = Math.abs(angle - startHeading);
+            if (turn > 180) {
+                turn = 360 - turn;
+            }
+            iRobot.leftTurnManuever(turn);
+        } else if ((angle == 0 && startHeading < 180) || (angle != 0 && (angle - startHeading < 0 || angle - startHeading > 180))) {	// right
+            double turn = angle - startHeading;
+            if (turn > 180) {
+                turn = 360 - turn;
+            }
+            iRobot.rightTurnManuever(Math.abs(turn));
+        }
+
+        netAngle += angle;
+        startHeading = angle;
+    }
+
+    private void movePen() {
+        System.out.println("Move Pen");
+
+        motorMover();
+        currentPenState = intendedPenState;
+    }
+
+    private void setManeuverStartDistance() {
+        System.out.println("Set Maneuver Start Distance");
+
+        distanceAtStartOfManeuver = netDistance;
+    }
+
+    private void move() {
+        System.out.println("Moving");
+        iRobot.incForward(distance);
+        netDistance += distance;
+
+        if (netDistance == (distance + distanceAtStartOfManeuver)) {	// redundant check for guard
+            System.out.println("Stop Moving");
+        }
+    }
+
+//    private void readFile() {
+//        // simulation
+//        StringBuilder sb = new StringBuilder();
+//        while (epsFile.hasNextLine()) {
+//            sb.append(epsFile.nextLine());
+//            sb.append(" ");
+//        }
+//        path = sb.toString().split(" ");
+//    }
     private Map<String, Object> commandParser(Map<String, Object> inputs) {
         //get inputs from map
         String[] inputPath = (String[]) inputs.get(KEY_PATH);
@@ -213,7 +235,6 @@ public class StateMachine {
         String currentStr = inputPath[inputArrayIndex];
         boolean isNumeric = isNumeric(currentStr);
         outputIsNumericOrNewPath = isNumeric || currentStr.equals("newpath");
-
         outputArrayIndex = inputArrayIndex + 1;
         if (isNumeric) {
             outputOrigX = inputOrigX;
@@ -225,9 +246,9 @@ public class StateMachine {
             outputIntendedPenState = inputCurrPenState;
         } else {
             if (currentStr.equals("line")) {
-            	double cmdX = Double.parseDouble(inputPath[inputArrayIndex - 2]);
+                double cmdX = Double.parseDouble(inputPath[inputArrayIndex - 2]);
                 double cmdY = Double.parseDouble(inputPath[inputArrayIndex - 1]);
-                
+
                 HashMap<String, String> distAndAngleInputs = new HashMap<String, String>();
                 distAndAngleInputs.put(KEY_CURR_X, inputCurrX + "");
                 distAndAngleInputs.put(KEY_CURR_Y, inputCurrY + "");
@@ -244,9 +265,9 @@ public class StateMachine {
                 outputCurrX = cmdX;
                 outputCurrY = cmdY;
             } else if (currentStr.equals("moveto")) {
-            	double cmdX = Double.parseDouble(inputPath[inputArrayIndex - 2]);
+                double cmdX = Double.parseDouble(inputPath[inputArrayIndex - 2]);
                 double cmdY = Double.parseDouble(inputPath[inputArrayIndex - 1]);
-                
+
                 HashMap<String, String> distAndAngleInputs = new HashMap<String, String>();
                 distAndAngleInputs.put(KEY_CURR_X, inputCurrX + "");
                 distAndAngleInputs.put(KEY_CURR_Y, inputCurrY + "");
@@ -263,7 +284,7 @@ public class StateMachine {
                 outputCurrX = cmdX;
                 outputCurrY = cmdY;
             } else {
-                //newpath or default
+                //default or newpath
                 outputOrigX = Double.parseDouble(inputPath[inputArrayIndex + 1]);
                 outputOrigY = Double.parseDouble(inputPath[inputArrayIndex + 2]);
                 outputDistance = inputDistance;
@@ -271,8 +292,7 @@ public class StateMachine {
                 outputCurrX = inputCurrX;
                 outputCurrY = inputCurrY;
                 outputIntendedPenState = inputCurrPenState;
-
-            }
+            } 
         }
 
         //Put Outputs in map
@@ -286,7 +306,7 @@ public class StateMachine {
         outputs.put(KEY_INDEX, outputArrayIndex);
         outputs.put(KEY_INTENDED_PEN_STATE, outputIntendedPenState);
         outputs.put(KEY_IS_NUMERIC_OR_NEWPATH, outputIsNumericOrNewPath);
-        
+
         return outputs;
     }
 
@@ -307,7 +327,7 @@ public class StateMachine {
 
         Double outputDist = Math.sqrt(Math.pow(nextX - currX, 2) + Math.pow(nextY - currY, 2));
         Double outputAngle = Math.toDegrees(Math.atan2(nextY - currY, nextX - currX));
-        
+
         if (outputAngle < 0) {
             outputAngle += 360;
         }
@@ -317,17 +337,32 @@ public class StateMachine {
         outputs.put(KEY_ANGLE, outputAngle);
         return outputs;
     }
-
-    private void motorMover() {
-    	boolean moveMotor = currentPenState ^ intendedPenState;
-    	
-    	if (moveMotor) {
-    		if (intendedPenState) {
-    			iRobot.putPenDown();
-    		} else {
-    			iRobot.pickPenUp();
-    		}
-    	}
+    
+    private void pause() {
+        while(true) {
+            try {
+                System.out.println("Paused");
+                Thread.sleep(10000);
+            } catch (InterruptedException ex) {
+                Logger.getLogger(StateMachine.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
     }
 
+    private void motorMover() {
+        boolean moveMotor = currentPenState ^ intendedPenState;
+
+        if (moveMotor) {
+            if (intendedPenState) {
+                iRobot.putPenDown();
+            } else {
+                iRobot.pickPenUp();
+            }
+        }
+    }
+
+    private static String convertStreamToString(java.io.InputStream is) {
+        java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
+        return s.hasNext() ? s.next() : "";
+    }
 }
